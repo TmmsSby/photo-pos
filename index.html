@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="写真展POS">
+<title>写真展 POS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface2:#edecea;--surface3:#e4e2de;
+  --border:#dddbd6;--border2:#ccc9c2;
+  --text:#1c1b18;--text2:#6b6860;--text3:#9e9b95;
+  --accent:#1c1b18;
+  --ticket-bg:#fff8ed;--ticket-border:#f5d49a;--ticket-color:#7a4e0d;--ticket-dark:#5c3a09;
+  --goods-bg:#edf4ff;--goods-border:#a8c8f5;--goods-color:#1a4580;--goods-dark:#0e2d57;
+  --green:#1e6b45;--green-bg:#e8f5ee;--green-border:#9ed4b8;
+  --red:#8f1f1f;--red-bg:#fdf0f0;--red-border:#f5b8b8;
+  --blue:#1a4580;--blue-bg:#edf4ff;--blue-border:#a8c8f5;
+  --paypay:#c0281a;--paypay-bg:#fff5f5;--paypay-border:#f5b8b8;
+  --r-lg:14px;--r-md:10px;--r-sm:7px;
+  --font:'Noto Sans JP',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);height:100dvh;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button{-webkit-tap-highlight-color:transparent;font-family:var(--font);touch-action:manipulation}
+.app{display:flex;flex-direction:column;height:100dvh}
+
+/* ヘッダー */
+.hdr{background:var(--accent);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;padding-top:max(10px,env(safe-area-inset-top))}
+.hdr-title{font-size:14px;font-weight:700;letter-spacing:.06em;flex:1}
+.hdr-staff{display:flex;align-items:center;gap:6px;font-size:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 11px;cursor:pointer}
+.hdr-clock{font-size:12px;font-family:var(--mono);color:rgba(255,255,255,.65)}
+
+/* タブ */
+.tabbar{display:flex;gap:4px;padding:8px 10px 0;background:var(--bg);flex-shrink:0}
+.tab{flex:1;padding:8px 4px;border:none;background:transparent;border-radius:var(--r-sm) var(--r-sm) 0 0;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.tab.active{color:var(--text);border-bottom-color:var(--accent);background:var(--surface)}
+
+.content{flex:1;overflow:hidden;background:var(--surface)}
+
+/* レジ */
+.register{display:grid;grid-template-columns:1fr 300px;height:100%}
+.left-pane{display:flex;flex-direction:column;height:100%;overflow:hidden;border-right:1px solid var(--border)}
+
+/* 担当者バー */
+.staff-bar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none}
+.staff-bar::-webkit-scrollbar{display:none}
+.staff-lbl{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;white-space:nowrap}
+.staff-chips{display:flex;gap:5px;flex-wrap:nowrap}
+.staff-chip{padding:4px 11px;border:1.5px solid var(--border2);border-radius:20px;font-size:12px;font-weight:500;background:var(--surface);cursor:pointer;transition:.12s;color:var(--text2);white-space:nowrap;flex-shrink:0}
+.staff-chip.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* カテゴリ */
+.cat-bar{display:flex;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface2)}
+.cat-tab{flex:1;padding:12px 8px;border:none;background:transparent;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;border-bottom:3px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px}
+.cat-tab.active-ticket{background:var(--ticket-bg);color:var(--ticket-color);border-bottom-color:var(--ticket-color)}
+.cat-tab.active-goods{background:var(--goods-bg);color:var(--goods-color);border-bottom-color:var(--goods-color)}
+.cat-tab:not(.active-ticket):not(.active-goods){color:var(--text3)}
+
+/* サブカテゴリ */
+.subcat-bar{display:flex;flex-shrink:0;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--surface);scrollbar-width:none}
+.subcat-bar::-webkit-scrollbar{display:none}
+.subcat-btn{padding:8px 14px;border:none;background:transparent;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.15s;flex-shrink:0}
+.subcat-btn.active{color:var(--goods-color);border-bottom-color:var(--goods-color);background:var(--goods-bg)}
+
+/* 商品グリッド */
+.products-scroll{flex:1;overflow-y:auto;padding:10px}
+.products-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.prod-btn{border:1.5px solid var(--border);border-radius:var(--r-md);padding:12px 8px 10px;background:var(--surface);cursor:pointer;text-align:center;transition:.12s;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:80px;justify-content:center;width:100%}
+.prod-btn:active{transform:scale(.94);opacity:.85}
+.prod-btn.ticket-btn{border-color:var(--ticket-border);background:var(--ticket-bg)}
+.prod-btn.goods-btn{border-color:var(--goods-border);background:var(--goods-bg)}
+.prod-name{font-size:12px;font-weight:700;line-height:1.3;color:var(--text)}
+.prod-price{font-size:15px;font-weight:700;font-family:var(--mono)}
+.prod-btn.ticket-btn .prod-price{color:var(--ticket-dark)}
+.prod-btn.goods-btn .prod-price{color:var(--goods-dark)}
+.subcat-lbl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:2px}
+
+/* カート */
+.cart-pane{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.cart-header{padding:10px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;flex-shrink:0;border-bottom:1px solid var(--border)}
+.cart-items{flex:1;overflow-y:auto;padding:8px}
+.cart-empty{display:flex;align-items:center;justify-content:center;height:80px;color:var(--text3);font-size:13px}
+.cart-item{display:flex;align-items:center;gap:6px;padding:7px 6px;border-radius:var(--r-sm);margin-bottom:4px;background:var(--surface2)}
+.ci-info{flex:1;min-width:0}
+.ci-name{font-size:12px;font-weight:700;color:var(--text);line-height:1.3}
+.ci-sub{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.qty-ctrl{display:flex;align-items:center;gap:3px}
+.qbtn{width:30px;height:30px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--text)}
+.qbtn:active{transform:scale(.88)}
+.qnum{font-size:13px;font-weight:700;min-width:24px;text-align:center;font-family:var(--mono)}
+.del-btn{width:24px;height:24px;border:none;background:transparent;cursor:pointer;color:var(--text3);font-size:14px;border-radius:4px}
+
+/* カートフッター */
+.cart-footer{flex-shrink:0;border-top:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:7px}
+.total-row{display:flex;justify-content:space-between;align-items:baseline}
+.total-lbl{font-size:12px;color:var(--text2);font-weight:600}
+.total-num{font-size:24px;font-weight:700;font-family:var(--mono)}
+.pay-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pay-btn{padding:10px 6px;border:2px solid var(--border);border-radius:var(--r-sm);background:var(--surface);font-size:13px;font-weight:700;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;gap:5px;color:var(--text2)}
+.pay-btn.sel-cash{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.pay-btn.sel-pay{border-color:var(--paypay);background:var(--paypay-bg);color:var(--paypay)}
+.cash-row{display:flex;align-items:center;gap:6px}
+.cash-lbl{font-size:12px;color:var(--text2);white-space:nowrap}
+.cash-disp{flex:1;height:38px;border:2px solid var(--border2);border-radius:var(--r-sm);padding:0 10px;font-family:var(--mono);font-size:16px;font-weight:700;text-align:right;background:var(--surface);display:flex;align-items:center;justify-content:flex-end;color:var(--text)}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.npbtn{padding:10px 5px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--mono);color:var(--text);touch-action:manipulation}
+.npbtn:active{background:var(--surface2);transform:scale(.93)}
+.npbtn.sp{background:var(--surface2);font-size:12px;color:var(--text2)}
+.change-box{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:var(--r-sm)}
+.chg-ok{background:var(--green-bg);border:1px solid var(--green-border)}
+.chg-ng{background:var(--red-bg);border:1px solid var(--red-border)}
+.chg-zero{background:var(--blue-bg);border:1px solid var(--blue-border)}
+.chg-lbl{font-size:12px;color:var(--text2)}
+.chg-val{font-size:16px;font-weight:700;font-family:var(--mono)}
+.settle-btn{padding:13px;border:none;border-radius:var(--r-md);font-size:15px;font-weight:700;cursor:pointer;width:100%;letter-spacing:.02em;touch-action:manipulation}
+.settle-btn.ready{background:var(--accent);color:#fff}
+.settle-btn.off{background:var(--surface2);color:var(--text3);cursor:not-allowed;font-size:13px}
+.clear-btn{width:100%;height:28px;border:1px solid var(--border2);background:transparent;border-radius:var(--r-sm);font-size:11px;color:var(--text3);cursor:pointer}
+
+/* 各種ページ */
+.page{padding:14px;overflow-y:auto;height:100%}
+.sec-lbl{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:8px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:12px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:7px 8px;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surface2)}
+.tbl td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.mi{width:100%;height:32px;border:1px solid var(--border2);border-radius:5px;padding:0 7px;font-family:var(--font);font-size:13px;background:var(--bg)}
+.mi:focus{outline:none;border-color:var(--accent)}
+.msel{height:32px;border:1px solid var(--border2);border-radius:5px;padding:0 5px;font-size:12px;background:var(--bg)}
+.add-btn{height:34px;padding:0 14px;border:1px solid var(--border2);background:var(--surface);border-radius:var(--r-sm);font-size:13px;cursor:pointer;margin-top:8px}
+.save-btn{height:36px;padding:0 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px;margin-right:6px}
+.del-row-btn{height:28px;padding:0 8px;border:1px solid var(--red-border);background:var(--red-bg);color:var(--red);border-radius:5px;font-size:11px;cursor:pointer}
+.sum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.sum-card{padding:10px 12px;border-radius:var(--r-md);border:1px solid var(--border)}
+.htbl{width:100%;border-collapse:collapse;font-size:12px}
+.htbl th{text-align:left;padding:7px 8px;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surface2)}
+.htbl td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700}
+.b-cash{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.b-pay{background:var(--paypay-bg);color:var(--paypay);border:1px solid var(--paypay-border)}
+.staff-sum-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:12px}
+
+/* 設定タブ */
+.url-input{width:100%;height:42px;border:2px solid var(--border2);border-radius:var(--r-sm);padding:0 12px;font-family:var(--mono);font-size:12px;background:var(--bg);margin-bottom:8px}
+.url-input:focus{outline:none;border-color:var(--accent)}
+.url-input.saved{border-color:var(--green);background:var(--green-bg)}
+.action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn-save{height:42px;padding:0 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--r-sm);font-size:14px;font-weight:700;cursor:pointer}
+.btn-save.ok{background:var(--green)}
+.btn-test{height:42px;padding:0 16px;border:1.5px solid var(--border2);background:var(--surface);border-radius:var(--r-sm);font-size:13px;cursor:pointer;color:var(--text2)}
+.status-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500}
+.s-none{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.s-ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.s-ng{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.s-wait{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.s-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* モーダル */
+.modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal{background:var(--surface);border-radius:18px;padding:24px 20px;max-width:320px;width:90%;text-align:center}
+.modal-icon{font-size:40px;margin-bottom:8px}
+.modal-ttl{font-size:16px;font-weight:700;margin-bottom:6px}
+.modal-body{font-size:13px;color:var(--text2);line-height:1.75;margin-bottom:18px}
+.modal-ok{width:100%;height:44px;background:var(--accent);color:#fff;border:none;border-radius:var(--r-md);font-size:15px;font-weight:700;cursor:pointer}
+.sm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0 16px}
+.sm-btn{padding:12px 8px;border:2px solid var(--border);border-radius:var(--r-md);background:var(--surface);font-size:14px;font-weight:700;cursor:pointer;transition:.12s}
+.sm-btn.selected{border-color:var(--accent);background:var(--accent);color:#fff}
+
+/* ローディング */
+.loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:300;gap:14px}
+.loading-title{font-size:18px;font-weight:700;color:var(--text)}
+.loading-sub{font-size:13px;color:var(--text3)}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ローディング -->
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-title">写真展 POS</div>
+  <div class="loading-sub" id="loadingMsg">データを読み込み中...</div>
+</div>
+
+<div class="app" id="app" style="display:none">
+  <div class="hdr">
+    <span class="hdr-title">📷 写真展 POS</span>
+    <button class="hdr-staff" onclick="openStaffModal()" id="hdrStaff">
+      👤 <span id="hdrStaffName">担当者を選択</span> ▾
+    </button>
+    <span class="hdr-clock" id="clock">--:--</span>
+  </div>
+
+  <div class="tabbar">
+    <button class="tab active" onclick="switchTab('register')">🛒 レジ</button>
+    <button class="tab" onclick="switchTab('history')">📊 売上</button>
+    <button class="tab" onclick="switchTab('master-goods')">📦 商品</button>
+    <button class="tab" onclick="switchTab('master-staff')">👥 担当者</button>
+    <button class="tab" onclick="switchTab('settings')">⚙️ 設定</button>
+  </div>
+
+  <div class="content">
+
+    <!-- レジ -->
+    <div id="tab-register" class="register">
+      <div class="left-pane">
+        <div class="staff-bar">
+          <span class="staff-lbl">担当</span>
+          <div class="staff-chips" id="staffChips"></div>
+        </div>
+        <div class="cat-bar">
+          <button class="cat-tab" id="catTicket" onclick="selectCat('ticket')">🎫 チケット</button>
+          <button class="cat-tab" id="catGoods"  onclick="selectCat('goods')">🛍 物販</button>
+        </div>
+        <div class="subcat-bar" id="subcatBar" style="display:none">
+          <button class="subcat-btn active" id="sub-all" onclick="selectSub('all')">すべて</button>
+        </div>
+        <div class="products-scroll">
+          <div class="products-grid" id="productsGrid"></div>
+        </div>
+      </div>
+
+      <div class="cart-pane">
+        <div class="cart-header">会計内容</div>
+        <div class="cart-items" id="cartItems">
+          <div class="cart-empty">商品をタップして追加</div>
+        </div>
+        <div class="cart-footer">
+          <div class="total-row">
+            <span class="total-lbl">合計</span>
+            <span class="total-num" id="totalDisp">¥0</span>
+          </div>
+          <div class="pay-btns">
+            <button class="pay-btn" id="btnCash" onclick="selPay('cash')">💴 現金</button>
+            <button class="pay-btn" id="btnPay"  onclick="selPay('paypay')">📱 PayPay</button>
+          </div>
+          <div id="cashBlock" style="display:none;flex-direction:column;gap:5px">
+            <div class="cash-row">
+              <span class="cash-lbl">お預かり</span>
+              <div class="cash-disp" id="cashDisp">0</div>
+              <span class="cash-lbl">円</span>
+            </div>
+            <div class="numpad" id="numpad"></div>
+            <div class="change-box" id="changeBox" style="display:none">
+              <span class="chg-lbl">おつり</span>
+              <span class="chg-val" id="changeVal">¥0</span>
+            </div>
+          </div>
+          <button class="settle-btn off" id="settleBtn" onclick="settle()">精算する</button>
+          <button class="clear-btn" onclick="clearCart()">カートをクリア</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 売上履歴 -->
+    <div id="tab-history" style="display:none" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="sec-lbl" style="margin:0">本日の売上</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="exportCSV()" style="height:30px;padding:0 12px;border:1px solid var(--border2);background:var(--surface);border-radius:var(--r-sm);font-size:12px;cursor:pointer">CSV</button>
+          <button onclick="clearHistory()" style="height:30px;padding:0 10px;border:1px solid var(--red-border);background:var(--red-bg);color:var(--red);border-radius:var(--r-sm);font-size:12px;cursor:pointer">クリア</button>
+        </div>
+      </div>
+      <div class="sum-grid" id="sumGrid"></div>
+      <div class="sec-lbl">担当者別</div>
+      <div class="staff-sum-grid" id="staffSumGrid"></div>
+      <div class="sec-lbl">取引明細</div>
+      <div style="overflow-x:auto">
+        <table class="htbl">
+          <thead><tr><th>時刻</th><th>担当</th><th>取引#</th><th>内訳</th><th>金額</th><th>支払</th><th>おつり</th></tr></thead>
+          <tbody id="historyTbody"></tbody>
+        </table>
+      </div>
+      <div id="historyEmpty" style="text-align:center;padding:32px;color:var(--text3);font-size:13px">まだ売上がありません</div>
+    </div>
+
+    <!-- 商品マスター -->
+    <div id="tab-master-goods" style="display:none" class="page">
+      <div class="sec-lbl">商品マスター</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.7">
+        ここで編集した内容は「保存」でスプレッドシートの「商品マスター」シートに書き込まれます。
+      </div>
+      <div class="card" style="padding:10px;overflow-x:auto">
+        <table class="tbl">
+          <thead><tr>
+            <th style="width:95px">コード</th><th>商品名</th>
+            <th style="width:72px">単価</th><th style="width:68px">種別</th>
+            <th style="width:112px">サブカテゴリ</th><th style="width:38px"></th>
+          </tr></thead>
+          <tbody id="goodsTbody"></tbody>
+        </table>
+        <button class="add-btn" onclick="addGoodsRow()">＋ 追加</button>
+      </div>
+      <button class="save-btn" onclick="saveGoods()">💾 スプレッドシートに保存</button>
+    </div>
+
+    <!-- 担当者マスター -->
+    <div id="tab-master-staff" style="display:none" class="page">
+      <div class="sec-lbl">担当者マスター</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.7">
+        ここで編集した内容は「保存」でスプレッドシートの「担当者マスター」シートに書き込まれます。
+      </div>
+      <div class="card" style="padding:10px">
+        <table class="tbl">
+          <thead><tr><th>担当者名</th><th style="width:46px"></th></tr></thead>
+          <tbody id="staffTbody"></tbody>
+        </table>
+        <button class="add-btn" onclick="addStaffRow()">＋ 追加</button>
+      </div>
+      <button class="save-btn" onclick="saveStaff()">💾 スプレッドシートに保存</button>
+    </div>
+
+    <!-- 設定 -->
+    <div id="tab-settings" style="display:none" class="page">
+      <div class="sec-lbl">GAS接続設定</div>
+      <div class="card">
+        <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:12px">
+          GAS WebアプリURLを入力して保存してください。<br>このURLはアプリのデータ通信に使用されます。
+        </p>
+        <input class="url-input" id="gasUrlInput" placeholder="https://script.google.com/macros/s/xxxxxxxx/exec"/>
+        <div class="action-row">
+          <button class="btn-save" id="btnSave" onclick="saveGAS()">💾 保存する</button>
+          <button class="btn-test" onclick="testGAS()">🔌 接続テスト</button>
+          <div class="status-pill s-none" id="gasStatusPill">
+            <span class="s-dot"></span><span id="gasStatusTxt">未設定</span>
+          </div>
+        </div>
+        <div id="gasResult" style="font-size:12px;color:var(--text2);margin-top:8px;min-height:18px"></div>
+      </div>
+
+      <div class="sec-lbl">アプリ情報</div>
+      <div class="card" style="font-size:13px;color:var(--text2);line-height:1.9">
+        <div>バージョン：<strong style="color:var(--text)">v1.0</strong></div>
+        <div>データ保存：スプレッドシート連携</div>
+        <div>ローカルキャッシュ：あり（オフライン時に使用）</div>
+        <div style="margin-top:8px">
+          <button onclick="clearLocalCache()" style="height:32px;padding:0 12px;border:1px solid var(--red-border);background:var(--red-bg);color:var(--red);border-radius:var(--r-sm);font-size:12px;cursor:pointer">ローカルキャッシュをクリア</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 精算完了モーダル -->
+<div class="modal-wrap" id="settleModal" style="display:none">
+  <div class="modal">
+    <div class="modal-icon">✅</div>
+    <div class="modal-ttl">精算完了</div>
+    <div class="modal-body" id="settleDetail"></div>
+    <button class="modal-ok" onclick="closeSettleModal()">次の会計へ</button>
+  </div>
+</div>
+
+<!-- 担当者モーダル -->
+<div class="modal-wrap" id="staffModal" style="display:none">
+  <div class="modal">
+    <div class="modal-ttl">👤 担当者を選択</div>
+    <div class="sm-grid" id="staffModalGrid"></div>
+    <button class="modal-ok" onclick="closeStaffModal()">決定</button>
+  </div>
+</div>
+
+<!-- エラーモーダル -->
+<div class="modal-wrap" id="errModal" style="display:none">
+  <div class="modal">
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-ttl" id="errTitle">エラー</div>
+    <div class="modal-body" id="errBody"></div>
+    <button class="modal-ok" onclick="document.getElementById('errModal').style.display='none'">閉じる</button>
+  </div>
+</div>
+
+<script>
+// =============================================
+// 設定
+// =============================================
+const SUBCATS = ['ノート','ファイル','ポストカード','マグネット','ポストイット'];
+
+const DEFAULT_PRODUCTS = [
+  {code:'TKT-FREE', name:'入場無料チケット', price:0,    cat:'ticket', sub:''},
+  {code:'TKT-GUIDE',name:'ガイド付チケット', price:1500, cat:'ticket', sub:''},
+  {code:'NT-001',   name:'ノート（A5）',     price:800,  cat:'goods',  sub:'ノート'},
+  {code:'NT-002',   name:'ノート（B6）',     price:600,  cat:'goods',  sub:'ノート'},
+  {code:'FL-001',   name:'クリアファイルA',  price:400,  cat:'goods',  sub:'ファイル'},
+  {code:'FL-002',   name:'クリアファイルB',  price:400,  cat:'goods',  sub:'ファイル'},
+  {code:'PC-001',   name:'ポストカード①',   price:200,  cat:'goods',  sub:'ポストカード'},
+  {code:'PC-002',   name:'ポストカード②',   price:200,  cat:'goods',  sub:'ポストカード'},
+  {code:'PC-SET',   name:'PCセット5枚',      price:800,  cat:'goods',  sub:'ポストカード'},
+  {code:'MG-001',   name:'マグネット①',     price:300,  cat:'goods',  sub:'マグネット'},
+  {code:'MG-002',   name:'マグネット②',     price:300,  cat:'goods',  sub:'マグネット'},
+  {code:'PT-001',   name:'ポストイット①',   price:350,  cat:'goods',  sub:'ポストイット'},
+  {code:'PT-002',   name:'ポストイット②',   price:350,  cat:'goods',  sub:'ポストイット'},
+];
+const DEFAULT_STAFF = ['田中','佐藤','鈴木','伊藤','山田','中村'];
+
+// =============================================
+// 状態
+// =============================================
+let GAS_URL    = localStorage.getItem('pos_gas_url') || '';
+let products   = JSON.parse(localStorage.getItem('pos_products') || 'null') || DEFAULT_PRODUCTS;
+let staffList  = JSON.parse(localStorage.getItem('pos_staff')    || 'null') || DEFAULT_STAFF;
+let history    = JSON.parse(localStorage.getItem('pos_history')  || '[]');
+let txCount    = parseInt(localStorage.getItem('pos_tx')         || '1');
+
+let cart = [], currentCat = 'ticket', currentSub = 'all';
+let payMethod = null, currentStaff = null;
+let receivedStr = '';
+
+// =============================================
+// 起動・初期化
+// =============================================
+window.addEventListener('DOMContentLoaded', async () => {
+  updateClock();
+  setInterval(updateClock, 1000);
+  buildNumpad();
+
+  if (GAS_URL) {
+    document.getElementById('loadingMsg').textContent = 'スプレッドシートからデータを読み込み中...';
+    try {
+      await loadMastersFromGAS();
+    } catch(e) {
+      document.getElementById('loadingMsg').textContent = 'オフラインのためキャッシュを使用';
+      await sleep(800);
+    }
+  } else {
+    document.getElementById('loadingMsg').textContent = 'ローカルデータで起動します';
+    await sleep(600);
+  }
+
+  buildSubcatBar();
+  selectCat('ticket');
+  renderStaffChips();
+  updateSettleBtn();
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display     = 'flex';
+});
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const fmt   = n  => '¥' + Number(n).toLocaleString();
+
+// =============================================
+// GAS通信
+// =============================================
+async function gasRequest(action, payload = {}) {
+  if (!GAS_URL) throw new Error('GAS URLが設定されていません');
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ action, ...payload })
+  });
+  const json = await res.json();
+  if (json.status !== 'ok') throw new Error(json.message || 'GASエラー');
+  return json;
+}
+
+async function loadMastersFromGAS() {
+  const data = await gasRequest('getMasters');
+  if (data.products && data.products.length > 0) {
+    products = data.products;
+    localStorage.setItem('pos_products', JSON.stringify(products));
+  }
+  if (data.staff && data.staff.length > 0) {
+    staffList = data.staff;
+    localStorage.setItem('pos_staff', JSON.stringify(staffList));
+  }
+}
+
+// =============================================
+// 時計
+// =============================================
+function updateClock() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    d.getHours().toString().padStart(2,'0') + ':' +
+    d.getMinutes().toString().padStart(2,'0');
+}
+
+// =============================================
+// タブ
+// =============================================
+const TABS = ['register','history','master-goods','master-staff','settings'];
+function switchTab(t) {
+  TABS.forEach(n => {
+    const el = document.getElementById('tab-' + n);
+    if (el) el.style.display = n === t ? (n === 'register' ? 'grid' : 'block') : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', TABS[i] === t);
+  });
+  if (t === 'master-goods')  renderGoodsMaster();
+  if (t === 'master-staff')  renderStaffMaster();
+  if (t === 'history')       renderHistory();
+  if (t === 'settings') {
+    if (GAS_URL) {
+      document.getElementById('gasUrlInput').value = GAS_URL;
+      document.getElementById('gasUrlInput').classList.add('saved');
+      setGasStatus('ok', '設定済み');
+    }
+  }
+}
+
+// =============================================
+// 担当者
+// =============================================
+function renderStaffChips() {
+  document.getElementById('staffChips').innerHTML =
+    staffList.map(s =>
+      `<button class="staff-chip${currentStaff===s?' selected':''}" onclick="setStaff('${s}')">${s}</button>`
+    ).join('');
+  document.getElementById('hdrStaffName').textContent = currentStaff || '担当者を選択';
+}
+function setStaff(s) { currentStaff = s; renderStaffChips(); updateSettleBtn(); }
+
+function openStaffModal() {
+  document.getElementById('staffModalGrid').innerHTML =
+    staffList.map(s =>
+      `<button class="sm-btn${currentStaff===s?' selected':''}" onclick="setStaffModal('${s}')">${s}</button>`
+    ).join('');
+  document.getElementById('staffModal').style.display = 'flex';
+}
+function setStaffModal(s) {
+  currentStaff = s;
+  document.querySelectorAll('.sm-btn').forEach(b => b.classList.toggle('selected', b.textContent === s));
+  renderStaffChips(); updateSettleBtn();
+}
+function closeStaffModal() { document.getElementById('staffModal').style.display = 'none'; }
+
+// =============================================
+// カテゴリ・サブカテゴリ
+// =============================================
+function buildSubcatBar() {
+  const bar = document.getElementById('subcatBar');
+  const subs = [...new Set(products.filter(p => p.cat === 'goods').map(p => p.sub).filter(Boolean))];
+  bar.innerHTML = `<button class="subcat-btn active" id="sub-all" onclick="selectSub('all')">すべて</button>` +
+    subs.map(s => {
+      const icon = {ノート:'📓',ファイル:'📁',ポストカード:'🗂',マグネット:'🧲',ポストイット:'📌'}[s] || '📦';
+      return `<button class="subcat-btn" id="sub-${s}" onclick="selectSub('${s}')">${icon} ${s}</button>`;
+    }).join('');
+}
+
+function selectCat(cat) {
+  currentCat = cat; currentSub = 'all';
+  document.getElementById('catTicket').className = 'cat-tab' + (cat === 'ticket' ? ' active-ticket' : '');
+  document.getElementById('catGoods').className  = 'cat-tab' + (cat === 'goods'  ? ' active-goods'  : '');
+  document.getElementById('subcatBar').style.display = cat === 'goods' ? 'flex' : 'none';
+  document.querySelectorAll('.subcat-btn').forEach(b => b.classList.remove('active'));
+  const allBtn = document.getElementById('sub-all');
+  if (allBtn) allBtn.classList.add('active');
+  renderProducts();
+}
+
+function selectSub(sub) {
+  currentSub = sub;
+  document.querySelectorAll('.subcat-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('sub-' + (sub === 'all' ? 'all' : sub));
+  if (btn) btn.classList.add('active');
+  renderProducts();
+}
+
+// =============================================
+// 商品グリッド
+// =============================================
+function renderProducts() {
+  const g = document.getElementById('productsGrid');
+  let filtered = products.filter(p => p.cat === currentCat);
+  if (currentCat === 'goods' && currentSub !== 'all') {
+    filtered = filtered.filter(p => p.sub === currentSub);
+  }
+  if (!filtered.length) {
+    g.innerHTML = '<div style="grid-column:1/-1;padding:24px;text-align:center;color:var(--text3);font-size:13px">この分類に商品がありません</div>';
+    return;
+  }
+  g.innerHTML = filtered.map(p => `
+    <button class="prod-btn ${p.cat==='ticket'?'ticket-btn':'goods-btn'}" onclick="addToCart('${p.code}')">
+      ${p.cat==='goods'&&p.sub ? `<div class="subcat-lbl">${p.sub}</div>` : ''}
+      <div class="prod-name">${p.name}</div>
+      <div class="prod-price">${p.price===0?'無料':fmt(p.price)}</div>
+    </button>`).join('');
+}
+
+// =============================================
+// カート
+// =============================================
+function addToCart(code) {
+  const p = products.find(x => x.code === code);
+  if (!p) return;
+  const ex = cart.find(x => x.code === code);
+  if (ex) ex.qty++; else cart.push({...p, qty:1});
+  renderCart();
+}
+function chgQty(code, d) {
+  const item = cart.find(x => x.code === code);
+  if (!item) return;
+  item.qty += d;
+  if (item.qty <= 0) cart = cart.filter(x => x.code !== code);
+  renderCart();
+}
+function delItem(code) { cart = cart.filter(x => x.code !== code); renderCart(); }
+function clearCart() {
+  cart = []; payMethod = null; receivedStr = '';
+  document.getElementById('cashDisp').textContent = '0';
+  document.getElementById('cashBlock').style.display = 'none';
+  document.getElementById('changeBox').style.display = 'none';
+  document.getElementById('btnCash').className = 'pay-btn';
+  document.getElementById('btnPay').className  = 'pay-btn';
+  renderCart();
+}
+function renderCart() {
+  const el    = document.getElementById('cartItems');
+  const total = cart.reduce((s,x) => s + x.price * x.qty, 0);
+  el.innerHTML = !cart.length
+    ? '<div class="cart-empty">商品をタップして追加</div>'
+    : cart.map(item => `
+      <div class="cart-item">
+        <div class="ci-info">
+          <div class="ci-name">${item.name}</div>
+          <div class="ci-sub">${item.price===0?'無料':fmt(item.price)} × ${item.qty} = ${item.price===0?'無料':fmt(item.price*item.qty)}</div>
+        </div>
+        <div class="qty-ctrl">
+          <button class="qbtn" onclick="chgQty('${item.code}',-1)">−</button>
+          <span class="qnum">${item.qty}</span>
+          <button class="qbtn" onclick="chgQty('${item.code}',1)">＋</button>
+        </div>
+        <button class="del-btn" onclick="delItem('${item.code}')">✕</button>
+      </div>`).join('');
+  document.getElementById('totalDisp').textContent = fmt(total);
+  calcChange(); updateSettleBtn();
+}
+
+// =============================================
+// テンキー
+// =============================================
+function buildNumpad() {
+  const keys = ['7','8','9','4','5','6','1','2','3','000','0','⌫'];
+  document.getElementById('numpad').innerHTML = keys.map(k =>
+    `<button class="npbtn${k==='⌫'||k==='000'?' sp':''}" onclick="numInput('${k}')">${k}</button>`
+  ).join('');
+}
+function numInput(v) {
+  if (v === '⌫') {
+    receivedStr = receivedStr.slice(0, -1);
+  } else {
+    if (receivedStr === '0') receivedStr = '';
+    receivedStr = (receivedStr + v).replace(/^0+/, '') || '0';
+  }
+  document.getElementById('cashDisp').textContent = receivedStr || '0';
+  calcChange();
+}
+
+// =============================================
+// 支払い
+// =============================================
+function selPay(m) {
+  payMethod = m;
+  document.getElementById('btnCash').className = 'pay-btn' + (m==='cash'   ? ' sel-cash' : '');
+  document.getElementById('btnPay').className  = 'pay-btn' + (m==='paypay' ? ' sel-pay'  : '');
+  const cb = document.getElementById('cashBlock');
+  cb.style.display = m === 'cash' ? 'flex' : 'none';
+  if (m === 'paypay') {
+    receivedStr = '';
+    document.getElementById('cashDisp').textContent = '0';
+    document.getElementById('changeBox').style.display = 'none';
+  }
+  updateSettleBtn();
+}
+
+function calcChange() {
+  const total = cart.reduce((s,x) => s + x.price * x.qty, 0);
+  const rec   = parseInt(receivedStr) || 0;
+  const chg   = rec - total;
+  const box   = document.getElementById('changeBox');
+  const val   = document.getElementById('changeVal');
+  if (rec > 0) {
+    box.style.display = 'flex';
+    if      (chg > 0)  { box.className = 'change-box chg-ok';   val.style.color = 'var(--green)'; val.textContent = fmt(chg); }
+    else if (chg === 0){ box.className = 'change-box chg-zero'; val.style.color = 'var(--blue)';  val.textContent = 'ちょうど'; }
+    else               { box.className = 'change-box chg-ng';   val.style.color = 'var(--red)';   val.textContent = '−' + fmt(Math.abs(chg)); }
+  } else {
+    box.style.display = 'none';
+  }
+  updateSettleBtn();
+}
+
+function updateSettleBtn() {
+  const total = cart.reduce((s,x) => s + x.price * x.qty, 0);
+  const rec   = parseInt(receivedStr) || 0;
+  let ok = cart.length > 0 && payMethod !== null && currentStaff !== null;
+  if (payMethod === 'cash') ok = ok && (rec >= total);
+  const btn = document.getElementById('settleBtn');
+  btn.className   = 'settle-btn ' + (ok ? 'ready' : 'off');
+  btn.textContent = !currentStaff ? '担当者を選んでください'
+                  : !payMethod    ? '支払方法を選んでください'
+                  : '精算する';
+}
+
+// =============================================
+// 精算
+// =============================================
+async function settle() {
+  const total = cart.reduce((s,x) => s + x.price * x.qty, 0);
+  if (!cart.length || !payMethod || !currentStaff) return;
+  const rec = payMethod === 'cash' ? (parseInt(receivedStr) || 0) : total;
+  if (payMethod === 'cash' && rec < total) return;
+  const chg   = payMethod === 'cash' ? rec - total : 0;
+  const now   = new Date();
+  const txId  = 'TX-' + String(txCount).padStart(4,'0');
+  const time  = now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const date  = now.toLocaleDateString('ja-JP');
+
+  const record = {
+    txId, date, time, staff: currentStaff,
+    items: cart.map(x => ({...x})),
+    total, payMethod, received: rec, change: chg
+  };
+  history.push(record);
+  txCount++;
+  localStorage.setItem('pos_history', JSON.stringify(history));
+  localStorage.setItem('pos_tx', String(txCount));
+
+  // GASへ送信
+  if (GAS_URL) {
+    const rows = cart.map(item => [
+      date + ' ' + time, txId, currentStaff,
+      item.name, item.cat === 'ticket' ? 'チケット' : '物販',
+      item.sub || '', item.qty, item.price, item.price * item.qty,
+      total, payMethod === 'cash' ? '現金' : 'PayPay', rec, chg
+    ]);
+    gasRequest('addSales', {rows}).catch(() => {
+      console.warn('スプレッドシートへの書き込みに失敗しました（ローカルには保存済み）');
+    });
+  }
+
+  const items = cart.map(x => x.name + '×' + x.qty).join('、');
+  let det = `${txId}　${currentStaff}<br>${time}<br><br>${items}<br><br>合計 <strong>${fmt(total)}</strong><br>支払：${payMethod==='cash'?'現金':'PayPay'}`;
+  if (payMethod === 'cash') det += `<br>お預かり ${fmt(rec)} / おつり ${fmt(chg)}`;
+  document.getElementById('settleDetail').innerHTML = det;
+  document.getElementById('settleModal').style.display = 'flex';
+  clearCart();
+}
+function closeSettleModal() { document.getElementById('settleModal').style.display = 'none'; }
+
+// =============================================
+// 売上履歴
+// =============================================
+function renderHistory() {
+  const tb    = document.getElementById('historyTbody');
+  const empty = document.getElementById('historyEmpty');
+  empty.style.display = history.length === 0 ? 'block' : 'none';
+
+  const ttl = history.reduce((s,r) => s + r.total, 0);
+  const csh = history.filter(r => r.payMethod==='cash').reduce((s,r) => s + r.total, 0);
+  const ppy = history.filter(r => r.payMethod==='paypay').reduce((s,r) => s + r.total, 0);
+
+  document.getElementById('sumGrid').innerHTML = `
+    <div class="sum-card" style="background:var(--surface2)">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:3px">総売上</div>
+      <div style="font-size:19px;font-weight:700;font-family:var(--mono)">${fmt(ttl)}</div>
+      <div style="font-size:11px;color:var(--text3)">${history.length}件</div>
+    </div>
+    <div class="sum-card" style="background:var(--green-bg);border-color:var(--green-border)">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--green);text-transform:uppercase;margin-bottom:3px">現金</div>
+      <div style="font-size:19px;font-weight:700;font-family:var(--mono);color:var(--green)">${fmt(csh)}</div>
+      <div style="font-size:11px;color:var(--green)">${history.filter(r=>r.payMethod==='cash').length}件</div>
+    </div>
+    <div class="sum-card" style="background:var(--paypay-bg);border-color:var(--paypay-border)">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--paypay);text-transform:uppercase;margin-bottom:3px">PayPay</div>
+      <div style="font-size:19px;font-weight:700;font-family:var(--mono);color:var(--paypay)">${fmt(ppy)}</div>
+      <div style="font-size:11px;color:var(--paypay)">${history.filter(r=>r.payMethod==='paypay').length}件</div>
+    </div>`;
+
+  const bySt = {};
+  history.forEach(r => {
+    if (!bySt[r.staff]) bySt[r.staff] = {total:0, cnt:0};
+    bySt[r.staff].total += r.total; bySt[r.staff].cnt++;
+  });
+  document.getElementById('staffSumGrid').innerHTML =
+    Object.entries(bySt).map(([n,v]) => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 12px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:2px">${n}</div>
+        <div style="font-size:16px;font-weight:700;font-family:var(--mono)">${fmt(v.total)}</div>
+        <div style="font-size:11px;color:var(--text3)">${v.cnt}件</div>
+      </div>`).join('') || '<div style="color:var(--text3);font-size:13px">データなし</div>';
+
+  tb.innerHTML = [...history].reverse().map(r => `
+    <tr>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${r.time}</td>
+      <td style="font-weight:500;font-size:12px">${r.staff||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${r.txId}</td>
+      <td style="font-size:12px;color:var(--text2)">${r.items.map(x=>x.name+'×'+x.qty).join('<br>')}</td>
+      <td style="font-family:var(--mono);font-weight:700">${fmt(r.total)}</td>
+      <td><span class="badge ${r.payMethod==='cash'?'b-cash':'b-pay'}">${r.payMethod==='cash'?'現金':'PayPay'}</span></td>
+      <td style="font-family:var(--mono);font-size:12px">${r.payMethod==='cash'?fmt(r.change):'—'}</td>
+    </tr>`).join('');
+}
+
+function exportCSV() {
+  const hdr = ['日時','取引番号','担当者','商品名','カテゴリ','サブカテゴリ','数量','単価','小計','合計','支払方法','お預かり','おつり'];
+  const rows = [];
+  history.forEach(r => {
+    r.items.forEach(item => {
+      rows.push([r.date+' '+r.time, r.txId, r.staff, item.name,
+        item.cat==='ticket'?'チケット':'物販', item.sub||'',
+        item.qty, item.price, item.price*item.qty,
+        r.total, r.payMethod==='cash'?'現金':'PayPay', r.received, r.change]);
+    });
+  });
+  const csv = [hdr, ...rows].map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'}));
+  a.download = 'sales_' + new Date().toLocaleDateString('ja-JP').replace(/\//g,'') + '.csv';
+  a.click();
+}
+
+function clearHistory() {
+  if (!confirm('本日の履歴をすべてクリアしますか？')) return;
+  history = []; localStorage.setItem('pos_history','[]'); renderHistory();
+}
+
+// =============================================
+// 商品マスター
+// =============================================
+function renderGoodsMaster() {
+  document.getElementById('goodsTbody').innerHTML = products.map((p,i) => `
+    <tr>
+      <td><input class="mi" value="${p.code}" onchange="products[${i}].code=this.value" style="width:85px"/></td>
+      <td><input class="mi" value="${p.name}" onchange="products[${i}].name=this.value"/></td>
+      <td><input class="mi" type="number" value="${p.price}" style="width:62px" onchange="products[${i}].price=parseInt(this.value)||0"/></td>
+      <td><select class="msel" style="width:62px" onchange="products[${i}].cat=this.value;renderGoodsMaster()">
+        <option value="ticket"${p.cat==='ticket'?' selected':''}>チケット</option>
+        <option value="goods"${p.cat==='goods'?' selected':''}>物販</option>
+      </select></td>
+      <td>${p.cat==='goods'
+        ? `<select class="msel" onchange="products[${i}].sub=this.value">
+            ${SUBCATS.map(s=>`<option value="${s}"${p.sub===s?' selected':''}>${s}</option>`).join('')}
+          </select>`
+        : '<span style="font-size:11px;color:var(--text3)">—</span>'}</td>
+      <td><button class="del-row-btn" onclick="products.splice(${i},1);renderGoodsMaster()">削除</button></td>
+    </tr>`).join('');
+}
+function addGoodsRow() { products.push({code:'',name:'',price:0,cat:'goods',sub:'ノート'}); renderGoodsMaster(); }
+
+async function saveGoods() {
+  localStorage.setItem('pos_products', JSON.stringify(products));
+  buildSubcatBar(); renderProducts();
+  if (!GAS_URL) { alert('ローカルに保存しました（GAS未設定のためスプレッドシートには保存されていません）'); return; }
+  try {
+    await gasRequest('saveMaster', {type:'products', data: products});
+    alert('スプレッドシートに保存しました。');
+  } catch(e) { alert('ローカルには保存しましたが、スプレッドシートへの保存に失敗しました：' + e.message); }
+}
+
+// =============================================
+// 担当者マスター
+// =============================================
+function renderStaffMaster() {
+  document.getElementById('staffTbody').innerHTML = staffList.map((s,i) => `
+    <tr>
+      <td><input class="mi" value="${s}" onchange="staffList[${i}]=this.value"/></td>
+      <td><button class="del-row-btn" onclick="staffList.splice(${i},1);renderStaffMaster()">削除</button></td>
+    </tr>`).join('');
+}
+function addStaffRow() { staffList.push(''); renderStaffMaster(); }
+
+async function saveStaff() {
+  localStorage.setItem('pos_staff', JSON.stringify(staffList));
+  renderStaffChips();
+  if (!GAS_URL) { alert('ローカルに保存しました（GAS未設定のためスプレッドシートには保存されていません）'); return; }
+  try {
+    await gasRequest('saveMaster', {type:'staff', data: staffList});
+    alert('スプレッドシートに保存しました。');
+  } catch(e) { alert('ローカルには保存しましたが、スプレッドシートへの保存に失敗しました：' + e.message); }
+}
+
+// =============================================
+// GAS設定
+// =============================================
+function saveGAS() {
+  const url = document.getElementById('gasUrlInput').value.trim();
+  if (!url) { document.getElementById('gasResult').textContent = '⚠️ URLを入力してください'; return; }
+  GAS_URL = url;
+  localStorage.setItem('pos_gas_url', GAS_URL);
+  document.getElementById('gasUrlInput').classList.add('saved');
+  document.getElementById('btnSave').classList.add('ok');
+  document.getElementById('btnSave').textContent = '✅ 保存済み';
+  setGasStatus('ok','設定済み');
+  document.getElementById('gasResult').textContent = '保存しました。「接続テスト」で動作確認してください。';
+}
+
+async function testGAS() {
+  const url = document.getElementById('gasUrlInput').value.trim();
+  if (!url) { document.getElementById('gasResult').textContent = '⚠️ URLを入力してください'; return; }
+  setGasStatus('wait','テスト中...');
+  document.getElementById('gasResult').textContent = '接続テスト中...';
+  try {
+    const res  = await fetch(url + '?action=ping');
+    const json = await res.json();
+    setGasStatus('ok','接続OK');
+    document.getElementById('gasResult').textContent = '✅ 接続OK：' + (json.message || JSON.stringify(json));
+  } catch(e) {
+    setGasStatus('ng','接続失敗');
+    document.getElementById('gasResult').textContent = '❌ 接続失敗：' + e.message;
+  }
+}
+
+function setGasStatus(state, txt) {
+  const el = document.getElementById('gasStatusPill');
+  el.className = 'status-pill ' + ({ok:'s-ok',ng:'s-ng',wait:'s-wait'}[state]||'s-none');
+  document.getElementById('gasStatusTxt').textContent = txt;
+}
+
+function clearLocalCache() {
+  if (!confirm('ローカルキャッシュをクリアしますか？\nGASと再接続してデータを再取得します。')) return;
+  localStorage.removeItem('pos_products');
+  localStorage.removeItem('pos_staff');
+  localStorage.removeItem('pos_history');
+  localStorage.removeItem('pos_tx');
+  location.reload();
+}
+</script>
+</body>
+</html>
