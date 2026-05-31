@@ -318,29 +318,24 @@ button{-webkit-tap-highlight-color:transparent;font-family:var(--font);touch-act
 
     <!-- 設定 -->
     <div id="tab-settings" style="display:none" class="page">
-      <div class="sec-lbl">GAS接続設定</div>
+      <div class="sec-lbl">スプレッドシート連携状態</div>
       <div class="card">
-        <p style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:12px">
-          GAS WebアプリURLを入力して保存してください。<br>このURLはアプリのデータ通信に使用されます。
-        </p>
-        <input class="url-input" id="gasUrlInput" placeholder="https://script.google.com/macros/s/xxxxxxxx/exec"/>
-        <div class="action-row">
-          <button class="btn-save" id="btnSave" onclick="saveGAS()">💾 保存する</button>
+        <div class="action-row" style="margin-bottom:10px">
           <button class="btn-test" onclick="testGAS()">🔌 接続テスト</button>
           <div class="status-pill s-none" id="gasStatusPill">
-            <span class="s-dot"></span><span id="gasStatusTxt">未設定</span>
+            <span class="s-dot"></span><span id="gasStatusTxt">未確認</span>
           </div>
         </div>
-        <div id="gasResult" style="font-size:12px;color:var(--text2);margin-top:8px;min-height:18px"></div>
+        <div id="gasResult" style="font-size:12px;color:var(--text2);min-height:18px"></div>
       </div>
 
       <div class="sec-lbl">アプリ情報</div>
       <div class="card" style="font-size:13px;color:var(--text2);line-height:1.9">
         <div>バージョン：<strong style="color:var(--text)">v1.0</strong></div>
-        <div>データ保存：スプレッドシート連携</div>
-        <div>ローカルキャッシュ：あり（オフライン時に使用）</div>
+        <div>データ保存：Googleスプレッドシート連携</div>
+        <div>ローカルキャッシュ：あり（起動時に自動同期）</div>
         <div style="margin-top:8px">
-          <button onclick="clearLocalCache()" style="height:32px;padding:0 12px;border:1px solid var(--red-border);background:var(--red-bg);color:var(--red);border-radius:var(--r-sm);font-size:12px;cursor:pointer">ローカルキャッシュをクリア</button>
+          <button onclick="clearLocalCache()" style="height:32px;padding:0 12px;border:1px solid var(--red-border);background:var(--red-bg);color:var(--red);border-radius:var(--r-sm);font-size:12px;cursor:pointer">キャッシュをクリアして再同期</button>
         </div>
       </div>
     </div>
@@ -403,10 +398,8 @@ const DEFAULT_STAFF = ['田中','佐藤','鈴木','伊藤','山田','中村'];
 // =============================================
 // 状態
 // =============================================
-// GASから配信されている場合は現在のURLを自動使用、それ以外はlocalStorageから取得
-const _currentUrl = window.location.href.split('?')[0];
-const _isGAS = _currentUrl.includes('script.google.com/macros/s/');
-let GAS_URL = _isGAS ? _currentUrl : (localStorage.getItem('pos_gas_url') || '');
+// GASから配信されているかチェック
+const _isGAS = window.location.href.includes('script.google.com/macros/s/');
 let products   = JSON.parse(localStorage.getItem('pos_products') || 'null') || DEFAULT_PRODUCTS;
 let staffList  = JSON.parse(localStorage.getItem('pos_staff')    || 'null') || DEFAULT_STAFF;
 let history    = JSON.parse(localStorage.getItem('pos_history')  || '[]');
@@ -424,12 +417,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   setInterval(updateClock, 1000);
   buildNumpad();
 
-  if (GAS_URL) {
+  if (_isGAS) {
     document.getElementById('loadingMsg').textContent = 'スプレッドシートからデータを読み込み中...';
     try {
       await loadMastersFromGAS();
     } catch(e) {
-      document.getElementById('loadingMsg').textContent = 'オフラインのためキャッシュを使用';
+      document.getElementById('loadingMsg').textContent = 'キャッシュデータで起動します';
       await sleep(800);
     }
   } else {
@@ -506,11 +499,7 @@ function switchTab(t) {
   if (t === 'master-staff')  renderStaffMaster();
   if (t === 'history')       renderHistory();
   if (t === 'settings') {
-    if (GAS_URL) {
-      document.getElementById('gasUrlInput').value = GAS_URL;
-      document.getElementById('gasUrlInput').classList.add('saved');
-      setGasStatus('ok', '設定済み');
-    }
+    setGasStatus(_isGAS ? 'ok' : 'ng', _isGAS ? 'GAS環境で動作中' : 'GAS環境外');
   }
 }
 
@@ -733,7 +722,7 @@ async function settle() {
   localStorage.setItem('pos_tx', String(txCount));
 
   // GASへ送信
-  if (GAS_URL) {
+  if (_isGAS) {
     const rows = cart.map(item => [
       date + ' ' + time, txId, currentStaff,
       item.name, item.cat === 'ticket' ? 'チケット' : '物販',
@@ -857,7 +846,7 @@ function addGoodsRow() { products.push({code:'',name:'',price:0,cat:'goods',sub:
 async function saveGoods() {
   localStorage.setItem('pos_products', JSON.stringify(products));
   buildSubcatBar(); renderProducts();
-  if (!GAS_URL) { alert('ローカルに保存しました（GAS未設定のためスプレッドシートには保存されていません）'); return; }
+  if (!_isGAS) { alert('ローカルに保存しました（GASから開いてください）'); return; }
   try {
     await gasRequest('saveMaster', {type:'products', data: products});
     alert('スプレッドシートに保存しました。');
@@ -879,7 +868,7 @@ function addStaffRow() { staffList.push(''); renderStaffMaster(); }
 async function saveStaff() {
   localStorage.setItem('pos_staff', JSON.stringify(staffList));
   renderStaffChips();
-  if (!GAS_URL) { alert('ローカルに保存しました（GAS未設定のためスプレッドシートには保存されていません）'); return; }
+  if (!_isGAS) { alert('ローカルに保存しました（GASから開いてください）'); return; }
   try {
     await gasRequest('saveMaster', {type:'staff', data: staffList});
     alert('スプレッドシートに保存しました。');
@@ -890,15 +879,7 @@ async function saveStaff() {
 // GAS設定
 // =============================================
 function saveGAS() {
-  const url = document.getElementById('gasUrlInput').value.trim();
-  if (!url) { document.getElementById('gasResult').textContent = '⚠️ URLを入力してください'; return; }
-  GAS_URL = url;
-  localStorage.setItem('pos_gas_url', GAS_URL);
-  document.getElementById('gasUrlInput').classList.add('saved');
-  document.getElementById('btnSave').classList.add('ok');
-  document.getElementById('btnSave').textContent = '✅ 保存済み';
-  setGasStatus('ok','設定済み');
-  document.getElementById('gasResult').textContent = '保存しました。「接続テスト」で動作確認してください。';
+  // GASから配信のためURL設定不要
 }
 
 async function testGAS() {
