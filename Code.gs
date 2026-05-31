@@ -59,6 +59,24 @@ function jsonResponse(obj) {
 }
 
 // ============================================================
+// google.script.run から呼び出されるエントリーポイント
+// ============================================================
+function handleRequest(action, payloadStr) {
+  try {
+    const payload = payloadStr ? JSON.parse(payloadStr) : {};
+    switch (action) {
+      case 'getMasters':  return getMasters();
+      case 'saveMaster':  return saveMaster(payload.type, payload.data);
+      case 'addSales':    return addSales(payload.rows);
+      case 'ping':        return {status:'ok', message:'POS GAS接続確認OK'};
+      default:            return {status:'error', message:'Unknown action: ' + action};
+    }
+  } catch(err) {
+    return {status:'error', message: err.toString()};
+  }
+}
+
+// ============================================================
 // マスターデータ取得
 // ============================================================
 function getMasters() {
