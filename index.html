@@ -399,7 +399,7 @@ const DEFAULT_STAFF = ['田中','佐藤','鈴木','伊藤','山田','中村'];
 // 状態
 // =============================================
 // GASから配信されているかチェック
-const _isGAS = window.location.href.includes('script.google.com/macros/s/');
+const _isGAS = window.location.href.includes('script.google.com/macros/s/') || window.location.href.includes('googleusercontent.com') || (typeof google !== 'undefined' && typeof google.script !== 'undefined');
 let products   = JSON.parse(localStorage.getItem('pos_products') || 'null') || DEFAULT_PRODUCTS;
 let staffList  = JSON.parse(localStorage.getItem('pos_staff')    || 'null') || DEFAULT_STAFF;
 let history    = JSON.parse(localStorage.getItem('pos_history')  || '[]');
