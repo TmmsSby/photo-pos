@@ -67,7 +67,7 @@ function handleRequest(action, payloadStr) {
     switch (action) {
       case 'getMasters':  return getMasters();
       case 'saveMaster':  return saveMaster(payload.type, payload.data);
-      case 'addSales':    return addSales(payload.rows);
+      case 'addSales':    return addSales(payload.rows, payload.stockUpdates);
       case 'ping':        return {status:'ok', message:'POS GAS接続確認OK'};
       default:            return {status:'error', message:'Unknown action: ' + action};
     }
@@ -97,7 +97,8 @@ function getMasters() {
       name:  String(row[1] || ''),
       price: Number(row[2] || 0),
       cat:   String(row[3] || 'goods'),
-      sub:   String(row[4] || '')
+      sub:   String(row[4] || ''),
+      stock: row[5] === '' || row[5] === null || row[5] === undefined ? null : Number(row[5])
     });
   }
 
@@ -125,8 +126,8 @@ function saveMaster(type, data) {
   if (type === 'products') {
     const sh = getOrCreateSheet(ss, '商品マスター');
     sh.clearContents();
-    sh.appendRow(['コード','商品名','単価','種別','サブカテゴリ']);
-    data.forEach(p => sh.appendRow([p.code, p.name, p.price, p.cat, p.sub || '']));
+    sh.appendRow(['コード','商品名','単価','種別','サブカテゴリ','在庫数']);
+    data.forEach(p => sh.appendRow([p.code, p.name, p.price, p.cat, p.sub || '', p.stock ?? '']));
     formatHeader(sh);
   }
 
@@ -144,7 +145,7 @@ function saveMaster(type, data) {
 // ============================================================
 // 売上明細追記
 // ============================================================
-function addSales(rows) {
+function addSales(rows, stockUpdates) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = getOrCreateSheet(ss, '売上明細');
 
@@ -159,6 +160,20 @@ function addSales(rows) {
   }
 
   rows.forEach(row => sh.appendRow(row));
+
+  // 在庫数を商品マスターに反映
+  if (stockUpdates && stockUpdates.length > 0) {
+    const pSheet = getOrCreateSheet(ss, '商品マスター');
+    const pData  = pSheet.getDataRange().getValues();
+    stockUpdates.forEach(function(update) {
+      for (var i = 1; i < pData.length; i++) {
+        if (String(pData[i][0]) === String(update.code)) {
+          pSheet.getRange(i + 1, 6).setValue(update.stock); // F列=在庫数
+          break;
+        }
+      }
+    });
+  }
 
   return {status:'ok', message: rows.length + '件追加しました'};
 }
@@ -179,16 +194,16 @@ function formatHeader(sh) {
 }
 
 function initProductSheet(sh) {
-  sh.appendRow(['コード','商品名','単価','種別','サブカテゴリ']);
+  sh.appendRow(['コード','商品名','単価','種別','サブカテゴリ','在庫数']);
   const defaults = [
-    ['TKT-FREE', '入場無料チケット', 0,    'ticket', ''],
-    ['TKT-GUIDE','ガイド付チケット', 1500, 'ticket', ''],
-    ['NT-001',   'ノート（A5）',    800,  'goods',  'ノート'],
-    ['NT-002',   'ノート（B6）',    600,  'goods',  'ノート'],
-    ['FL-001',   'クリアファイルA', 400,  'goods',  'ファイル'],
-    ['PC-001',   'ポストカード①',  200,  'goods',  'ポストカード'],
-    ['MG-001',   'マグネット①',    300,  'goods',  'マグネット'],
-    ['PT-001',   'ポストイット①',  350,  'goods',  'ポストイット'],
+    ['TKT-FREE', '入場無料チケット', 0,    'ticket', '', ''],
+    ['TKT-GUIDE','ガイド付チケット', 1500, 'ticket', '', ''],
+    ['NT-001',   'ノート（A5）',    800,  'goods',  'ノート',       ''],
+    ['NT-002',   'ノート（B6）',    600,  'goods',  'ノート',       ''],
+    ['FL-001',   'クリアファイルA', 400,  'goods',  'ファイル',     ''],
+    ['PC-001',   'ポストカード①',  200,  'goods',  'ポストカード', ''],
+    ['MG-001',   'マグネット①',    300,  'goods',  'マグネット',   ''],
+    ['PT-001',   'ポストイット①',  350,  'goods',  'ポストイット', ''],
   ];
   defaults.forEach(row => sh.appendRow(row));
   formatHeader(sh);

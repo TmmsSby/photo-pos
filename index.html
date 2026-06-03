@@ -78,6 +78,10 @@ button{-webkit-tap-highlight-color:transparent;font-family:var(--font);touch-act
 .prod-btn.ticket-btn .prod-price{color:var(--ticket-dark)}
 .prod-btn.goods-btn .prod-price{color:var(--goods-dark)}
 .subcat-lbl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:2px}
+.stock-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+.stock-out{color:var(--red);font-weight:700}
+.out-of-stock{opacity:.4;cursor:not-allowed;filter:grayscale(1)}
+.out-of-stock:active{transform:none}
 
 /* カート */
 .cart-pane{display:flex;flex-direction:column;height:100%;overflow:hidden}
@@ -289,9 +293,10 @@ button{-webkit-tap-highlight-color:transparent;font-family:var(--font);touch-act
       <div class="card" style="padding:10px;overflow-x:auto">
         <table class="tbl">
           <thead><tr>
-            <th style="width:95px">コード</th><th>商品名</th>
-            <th style="width:72px">単価</th><th style="width:68px">種別</th>
-            <th style="width:112px">サブカテゴリ</th><th style="width:38px"></th>
+            <th style="width:88px">コード</th><th>商品名</th>
+            <th style="width:65px">単価</th><th style="width:62px">種別</th>
+            <th style="width:100px">サブカテゴリ</th>
+            <th style="width:55px">在庫数</th><th style="width:38px"></th>
           </tr></thead>
           <tbody id="goodsTbody"></tbody>
         </table>
@@ -574,12 +579,20 @@ function renderProducts() {
     g.innerHTML = '<div style="grid-column:1/-1;padding:24px;text-align:center;color:var(--text3);font-size:13px">この分類に商品がありません</div>';
     return;
   }
-  g.innerHTML = filtered.map(p => `
-    <button class="prod-btn ${p.cat==='ticket'?'ticket-btn':'goods-btn'}" onclick="addToCart('${p.code}')">
+  g.innerHTML = filtered.map(p => {
+    const outOfStock = typeof p.stock !== 'undefined' && p.stock !== '' && p.stock !== null && Number(p.stock) <= 0;
+    const stockLabel = typeof p.stock !== 'undefined' && p.stock !== '' && p.stock !== null
+      ? (outOfStock ? '在庫なし' : `残り${p.stock}`) : '';
+    return `
+    <button class="prod-btn ${p.cat==='ticket'?'ticket-btn':'goods-btn'}${outOfStock?' out-of-stock':''}"
+      onclick="${outOfStock?'':"addToCart('" + p.code + "')"}"
+      ${outOfStock?'disabled':''}>
       ${p.cat==='goods'&&p.sub ? `<div class="subcat-lbl">${p.sub}</div>` : ''}
       <div class="prod-name">${p.name}</div>
       <div class="prod-price">${p.price===0?'無料':fmt(p.price)}</div>
-    </button>`).join('');
+      ${stockLabel ? `<div class="stock-lbl${outOfStock?' stock-out':''}">${stockLabel}</div>` : ''}
+    </button>`;
+  }).join('');
 }
 
 // =============================================
@@ -721,6 +734,15 @@ async function settle() {
   localStorage.setItem('pos_history', JSON.stringify(history));
   localStorage.setItem('pos_tx', String(txCount));
 
+  // 在庫を減らす（ローカル）
+  cart.forEach(item => {
+    const p = products.find(x => x.code === item.code);
+    if (p && p.stock !== null && p.stock !== undefined && p.stock !== '') {
+      p.stock = Math.max(0, Number(p.stock) - item.qty);
+    }
+  });
+  localStorage.setItem('pos_products', JSON.stringify(products));
+
   // GASへ送信
   if (_isGAS) {
     const rows = cart.map(item => [
@@ -729,7 +751,17 @@ async function settle() {
       item.sub || '', item.qty, item.price, item.price * item.qty,
       total, payMethod === 'cash' ? '現金' : 'PayPay', rec, chg
     ]);
-    gasRequest('addSales', {rows}).catch(() => {
+    // 在庫更新データ
+    const stockUpdates = cart
+      .filter(item => {
+        const p = products.find(x => x.code === item.code);
+        return p && p.stock !== null && p.stock !== undefined && p.stock !== '';
+      })
+      .map(item => {
+        const p = products.find(x => x.code === item.code);
+        return {code: item.code, stock: Number(p.stock)};
+      });
+    gasRequest('addSales', {rows, stockUpdates}).catch(() => {
       console.warn('スプレッドシートへの書き込みに失敗しました（ローカルには保存済み）');
     });
   }
@@ -838,6 +870,7 @@ function renderGoodsMaster() {
             ${SUBCATS.map(s=>`<option value="${s}"${p.sub===s?' selected':''}>${s}</option>`).join('')}
           </select>`
         : '<span style="font-size:11px;color:var(--text3)">—</span>'}</td>
+      <td><input class="mi" type="number" value="${p.stock??''}" placeholder="∞" style="width:50px" onchange="products[${i}].stock=this.value===''?null:parseInt(this.value)"/></td>
       <td><button class="del-row-btn" onclick="products.splice(${i},1);renderGoodsMaster()">削除</button></td>
     </tr>`).join('');
 }
