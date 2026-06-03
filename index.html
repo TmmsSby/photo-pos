@@ -381,7 +381,7 @@ button{-webkit-tap-highlight-color:transparent;font-family:var(--font);touch-act
 // =============================================
 // 設定
 // =============================================
-const SUBCATS = ['ノート','ファイル','ポストカード','マグネット','ポストイット'];
+const SUBCATS = ['ノート','ファイル','ポストカード','マグネット','ポストイット','キーホルダー','その他'];
 
 const DEFAULT_PRODUCTS = [
   {code:'TKT-FREE', name:'入場無料チケット', price:0,    cat:'ticket', sub:''},
@@ -542,7 +542,7 @@ function buildSubcatBar() {
   const subs = [...new Set(products.filter(p => p.cat === 'goods').map(p => p.sub).filter(Boolean))];
   bar.innerHTML = `<button class="subcat-btn active" id="sub-all" onclick="selectSub('all')">すべて</button>` +
     subs.map(s => {
-      const icon = {ノート:'📓',ファイル:'📁',ポストカード:'🗂',マグネット:'🧲',ポストイット:'📌'}[s] || '📦';
+      const icon = {ノート:'📓',ファイル:'📁',ポストカード:'🗂',マグネット:'🧲',ポストイット:'📌',キーホルダー:'🔑',その他:'📦'}[s] || '📦';
       return `<button class="subcat-btn" id="sub-${s}" onclick="selectSub('${s}')">${icon} ${s}</button>`;
     }).join('');
 }
@@ -749,7 +749,8 @@ async function settle() {
       date + ' ' + time, txId, currentStaff,
       item.name, item.cat === 'ticket' ? 'チケット' : '物販',
       item.sub || '', item.qty, item.price, item.price * item.qty,
-      total, payMethod === 'cash' ? '現金' : 'PayPay', rec, chg
+      total, payMethod === 'cash' ? '現金' : 'PayPay',
+      payMethod === 'cash' ? rec : '', payMethod === 'cash' ? chg : ''
     ]);
     // 在庫更新データ
     const stockUpdates = cart
